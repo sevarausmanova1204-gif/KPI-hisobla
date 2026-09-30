@@ -1,0 +1,47 @@
+# Jadval bo'yicha hisobotlar. Vaqtlar UTC (Toshkent = UTC+5).
+# Kerakli secrets: GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_JSON,
+# TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, (ixtiyoriy) TELEGRAM_DIRECTOR_CHAT_ID.
+name: kpi-schedule
+on:
+  schedule:
+    - cron: "0 7 * * *"    # 12:00 — kiritilmagan ma'lumot ogohlantirishi
+    - cron: "30 7 * * *"   # 12:30 — kunlik hisobot
+    - cron: "45 7 * * 1"   # dushanba 12:45 — haftalik hisobot
+    - cron: "50 7 1 * *"   # 1-sana 12:50 — oylik maosh
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "ogohlantirish | kunlik | haftalik | oylik"
+        required: true
+        default: kunlik
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_DIRECTOR_CHAT_ID: ${{ secrets.TELEGRAM_DIRECTOR_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Buyruqni tanlash va ishga tushirish
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT_COMMAND: ${{ github.event.inputs.command }}
+        run: |
+          if [ -z "$GOOGLE_SHEET_ID" ] || [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "Secrets o'rnatilmagan — o'tkazib yuborildi"; exit 0
+          fi
+          case "$SCHEDULE" in
+            "0 7 * * *")  CMD=ogohlantirish ;;
+            "30 7 * * *") CMD=kunlik ;;
+            "45 7 * * 1") CMD=haftalik ;;
+            "50 7 1 * *") CMD=oylik ;;
+            *)            CMD="$INPUT_COMMAND" ;;
+          esac
+          python -m kpi "$CMD"
