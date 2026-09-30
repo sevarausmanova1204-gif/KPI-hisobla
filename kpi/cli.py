@@ -6,6 +6,7 @@
   haftalik         Haftalik hisobot (dushanba)
   oylik            Oylik maosh → Arxiv + Excel + Telegram (1-sana)
   tasdiqlash       Arxivdagi oy maoshini "tasdiqlangan" deb belgilash
+  dashboard        HTML KPI paneli (dashboard.html)
   tekshir          Python hisobini Sheets formulalari bilan solishtirish
   shablon          Offlayn sinov uchun bo'sh .xlsx shablon
 """
@@ -184,6 +185,18 @@ def cmd_check(args) -> int:
     return 1 if bad else 0
 
 
+def cmd_dashboard(args) -> None:
+    from .dashboard import write_dashboard
+    if args.namuna:
+        from .config import Settings
+        from .demo import AS_OF, demo_dataset
+        ds, settings, day = demo_dataset(), Settings(), AS_OF
+    else:
+        _, ds, settings = _load(args)
+        day = _parse_day(args.sana)
+    print(f"Dashboard: {write_dashboard(args.fayl, ds, settings, day, sample=args.namuna)}")
+
+
 def cmd_template(args) -> None:
     from .local import write_template
     write_template(args.fayl)
@@ -220,6 +233,12 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--oy", help="YYYY-MM")
     sp.set_defaults(fn=cmd_approve)
     sub.add_parser("tekshir").set_defaults(fn=cmd_check)
+    sp = sub.add_parser("dashboard")
+    sp.add_argument("--xlsx", help="Sheets o'rniga .xlsx fayldan o'qish")
+    sp.add_argument("--sana", help="YYYY-MM-DD (standart: kecha)")
+    sp.add_argument("--fayl", default="dashboard.html")
+    sp.add_argument("--namuna", action="store_true", help="namuna ma'lumot bilan")
+    sp.set_defaults(fn=cmd_dashboard)
     sp = sub.add_parser("shablon")
     sp.add_argument("--fayl", default="kpi_shablon.xlsx")
     sp.set_defaults(fn=cmd_template)

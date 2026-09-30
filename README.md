@@ -17,6 +17,7 @@ Asos: "Call-markaz KPI platformasi — texnik topshiriq" hujjati.
 | `kpi/analysis.py` | Holat belgisi, chegaragacha masofa, prognoz, choralar (ko'pi bilan 2 ta), namuna | 6 |
 | `kpi/report.py`, `kpi/telegram.py` | Kunlik, haftalik va oylik Telegram hisobotlari | 7 |
 | `kpi/sheets.py` | Varaqlar, validatsiya, nomlangan diapazonlar, Tahlil, Arxiv, himoya | 3, 4, 8 |
+| `kpi/dashboard.py`, `kpi/templates/dashboard.html`, `kpi/demo.py` | HTML KPI paneli va namuna ma'lumot | 9 (4-bosqich) |
 | `kpi/local.py` | Excel eksporti va offlayn sinov uchun `.xlsx` o'qish | 8 |
 
 ## Google Sheets tuzilmasi
@@ -81,6 +82,8 @@ python -m kpi haftalik                    # dushanba: hafta bo'yicha o'sish/pasa
 python -m kpi oylik [--oy 2026-09]        # Arxiv + Excel + Telegram (direktorga)
 python -m kpi tasdiqlash --oy 2026-09     # direktor tasdig'idan keyin
 python -m kpi tekshir                     # Sheets formulalari = Python hisobi?
+python -m kpi dashboard [--sana ...]      # dashboard.html — KPI paneli
+python -m kpi dashboard --namuna          # namuna ma'lumot bilan panel
 python -m kpi shablon                     # offlayn sinov uchun .xlsx shablon
 ```
 
@@ -88,6 +91,17 @@ python -m kpi shablon                     # offlayn sinov uchun .xlsx shablon
 yozilmaydi, faqat ekranga chiqadi. `--xlsx fayl.xlsx` bilan ma'lumot Sheets
 o'rniga Excel fayldan o'qiladi, masalan:
 `python -m kpi kunlik --xlsx sentabr.xlsx --yuborma`.
+
+## Dashboard
+
+`python -m kpi dashboard` yagona mustaqil `dashboard.html` fayl yasaydi. Unda:
+- qisqa holat: maosh fondi, bonusdagi KPI'lar, orqada qolganlar, kiritilmaganlar;
+- jamoa matritsasi: operator × 5 KPI, holat belgisi va bosqichlar;
+- tanlangan operator: har KPI bo'yicha bosqich shkalasi, chegaragacha masofa, choralar;
+- oy boshidan dinamika grafigi: bosqich chiziqlari bilan;
+- oylik maosh prognozi: Fixa, KPI va qo'shimcha bonuslar, jadval ko'rinishi bilan.
+
+Hisob-kitob Python'da qoladi, HTML faqat tayyor raqamlarni ko'rsatadi.
 
 ## Jadval (avtomatik ishga tushirish)
 
@@ -120,4 +134,5 @@ masofa matni ham tekshiriladi, masalan:
 - [ ] PDF eksporti
 - [ ] Mavjud `lead_report.py` / `extra_report.py` skriptlarini ulash (ular repoda yo'q)
 - [ ] Sentabr ma'lumotlarini "SENTABR KPI" varag'idan ko'chirish va 6 operator bo'yicha solishtirish
-- [ ] 4-bosqich: CRM va telefoniyadan import, shaxsiy hisobotlar, AI tahlil, dashboard
+- [x] Dashboard (HTML panel)
+- [ ] 4-bosqich: CRM va telefoniyadan import, shaxsiy hisobotlar, AI tahlil
