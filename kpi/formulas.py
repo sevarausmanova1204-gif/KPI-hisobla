@@ -212,7 +212,7 @@ def valid_nonneg(cell: str) -> str:
 PLAN_CALC_HEADERS = [
     "Kunlik reja (so'm)", "Haftalik reja (so'm)", "Mijoz oylik", "Mijoz haftalik",
     "Mijoz kunlik", "Kerakli sifatli lead (oy)", "Fakt summa", "Fakt mijoz",
-    "Bajarilish %", "Qolgan ish kuni", "Kuniga kerak (so'm)",
+    "Bajarilish %", "Qolgan kun", "Kuniga kerak (so'm)",
 ]
 PLAN_FIRST_CALC_COL = "G"
 
@@ -222,18 +222,19 @@ def plan_formulas() -> list[str]:
     kk = f"{K}!$"
     fact = (lambda col: f'=MAP(A2:A,B2:B,LAMBDA(a,b,IF(b="","",SUMIFS({kk}{col}$2:${col},'
             f'{kk}B$2:$B,b,{kk}A$2:$A,">="&a,{kk}A$2:$A,"<="&EOMONTH(a,0),{kk}C$2:$C,"{C.WORKED}"))))')
-    days, weeks, check = named("REJA_ISH_KUNLARI"), named("REJA_HAFTALAR"), named("REJA_CHEK")
+    check = named("REJA_CHEK")
+    # oydagi kunlar: REJA_KUNLAR > 0 bo'lsa shu son, aks holda kalendar kunlari
+    days = f'IF({named("REJA_KUNLAR")}>0,{named("REJA_KUNLAR")},DAY(EOMONTH(a,0)))'
     return [
-        f'=MAP(C2:C,LAMBDA(c,IF(c="","",ROUND(c/{days},0))))',
-        f'=MAP(C2:C,LAMBDA(c,IF(c="","",ROUND(c/{weeks},0))))',
+        f'=MAP(A2:A,C2:C,LAMBDA(a,c,IF(c="","",ROUND(c/{days},0))))',
+        f'=MAP(A2:A,C2:C,LAMBDA(a,c,IF(c="","",ROUND(c/{days}*7,0))))',
         f'=MAP(C2:C,E2:E,LAMBDA(c,e,IF(c="","",ROUND(c/IF(e="",{check},e),1))))',
-        f'=MAP(I2:I,LAMBDA(i,IF(i="","",ROUND(i/{weeks},1))))',
-        f'=MAP(I2:I,LAMBDA(i,IF(i="","",ROUND(i/{days},1))))',
+        f'=MAP(A2:A,I2:I,LAMBDA(a,i,IF(i="","",ROUND(i/{days}*7,1))))',
+        f'=MAP(A2:A,I2:I,LAMBDA(a,i,IF(i="","",ROUND(i/{days},1))))',
         '=MAP(I2:I,D2:D,LAMBDA(i,d,IF(OR(i="",d="",d=0),"",ROUND(i/(IF(d<=1,d*100,d)/100),0))))',
         fact("K"),
         fact("J"),
         '=MAP(C2:C,M2:M,LAMBDA(c,m,IF(c="","",ROUND(m/c*100,1))))',
-        (f'=MAP(A2:A,C2:C,LAMBDA(a,c,IF(c="","",IF(TODAY()>EOMONTH(a,0),0,'
-         f'NETWORKDAYS.INTL(MAX(TODAY(),a),EOMONTH(a,0),"0000001",{C.SH_HOLIDAYS}!$A$2:$A)))))'),
+        '=MAP(A2:A,C2:C,LAMBDA(a,c,IF(c="","",MAX(0,EOMONTH(a,0)-MAX(TODAY(),a)+1))))',
         '=MAP(C2:C,M2:M,P2:P,LAMBDA(c,m,p,IF(c="","",ROUND(MAX(0,c-m)/MAX(1,p),0))))',
     ]

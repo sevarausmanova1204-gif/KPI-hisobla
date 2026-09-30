@@ -129,7 +129,7 @@ def cmd_daily(args) -> None:
 def _plan_rows(ds, settings, day: date):
     from .plan import build_plan, track
     rows = build_plan(ds.plans, settings, month_start(day))
-    return track(rows, ds, day, ds.holidays) if rows else []
+    return track(rows, ds, day) if rows else []
 
 
 def _plan_source(args):
@@ -139,13 +139,10 @@ def _plan_source(args):
 
         from .config import Settings
         from .models import Dataset
-        from .plan import parse_holidays, parse_plan
+        from .plan import parse_plan
         with open(args.csv, encoding="utf-8-sig") as fh:
             rows = list(csv.reader(fh))
-        ds = Dataset(plans=parse_plan(rows))
-        from .config import DEFAULT_HOLIDAYS
-        ds.holidays = parse_holidays([["Sana"]] + [[d] for d, _ in DEFAULT_HOLIDAYS])
-        return None, ds, Settings()
+        return None, Dataset(plans=parse_plan(rows)), Settings()
     return _load(args)
 
 
@@ -158,11 +155,11 @@ def cmd_plan(args) -> None:
     if not rows:
         raise SystemExit(f"{month.strftime('%Y-%m')} uchun reja topilmadi (Reja varag'i yoki --csv)")
     as_of = min(_today() - timedelta(days=1), month_end(month))
-    track(rows, ds, as_of, ds.holidays)
+    track(rows, ds, as_of)
     label = f"{MONTHS[month.month - 1]} {month.year}"
     if args.fayl:
         from .dashboard import write_plan_page
-        print(f"Reja sahifasi: {write_plan_page(args.fayl, rows, month, as_of, ds.holidays)}")
+        print(f"Reja sahifasi: {write_plan_page(args.fayl, rows, month, as_of, settings)}")
     _send(args, R.plan_distribution(label, rows))
 
 

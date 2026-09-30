@@ -1,10 +1,11 @@
 """Oylik savdo rejasi: operatorlarga taqsimlash va bajarilishini kuzatish.
 
 Formulalar (rahbar bilan kelishilgan):
-  Kunlik suma   = Oylik suma / REJA_ISH_KUNLARI (26)
-  Haftalik suma = Oylik suma / REJA_HAFTALAR (4)
+  Kunlik suma   = Oylik suma / oydagi kunlar (31 — har operatorning dam olish
+                  kuni har xil, shuning uchun kalendar kunlari olinadi)
+  Haftalik suma = Kunlik suma × 7
   Mijoz oylik   = Oylik suma / o'rtacha chek (REJA_CHEK, 400 000)
-  Mijoz kunlik  = Mijoz oylik / 26;  Mijoz haftalik = Mijoz oylik / 4
+  Mijoz kunlik  = Mijoz oylik / kunlar;  Mijoz haftalik = Mijoz kunlik × 7
   Kerakli sifatli lead = Mijoz oylik / konversiya maqsadi
 """
 from __future__ import annotations
@@ -104,22 +105,18 @@ def parse_plan(rows: list[list[object]] | None) -> list[PlanInput]:
     return out
 
 
-def parse_holidays(rows: list[list[object]] | None) -> set[date]:
-    return {d for d in (to_date((list(r) + [None])[0]) for r in (rows or [])[1:]) if d}
+def plan_days(month: date, settings: C.Settings) -> int:
+    fixed = settings.int("REJA_KUNLAR")
+    return fixed if fixed > 0 else month_end(month).day
 
 
-def plan_workdays(start: date, end: date, holidays: set[date]) -> list[date]:
-    out, d = [], start
-    while d <= end:
-        if d.weekday() != 6 and d not in holidays:
-            out.append(d)
-        d += timedelta(days=1)
-    return out
+def month_days(month: date) -> list[date]:
+    m0 = month_start(month)
+    return [m0 + timedelta(i) for i in range(month_end(m0).day)]
 
 
 def build_plan(inputs: list[PlanInput], settings: C.Settings, month: date) -> list[PlanRow]:
-    days = settings.get("REJA_ISH_KUNLARI")
-    weeks = settings.get("REJA_HAFTALAR")
+    days = plan_days(month, settings)
     rows = []
     for p in inputs:
         if p.month != month_start(month):
@@ -130,19 +127,19 @@ def build_plan(inputs: list[PlanInput], settings: C.Settings, month: date) -> li
         rows.append(PlanRow(
             month=p.month, operator=p.operator, amount=p.amount, conversion=p.conversion,
             avg_check=check, note=p.note,
-            daily=round_half_up(p.amount / days), weekly=round_half_up(p.amount / weeks),
-            clients_month=round_half_up(clients, 1), clients_week=round_half_up(clients / weeks, 1),
+            daily=round_half_up(p.amount / days), weekly=round_half_up(p.amount / days * 7),
+            clients_month=round_half_up(clients, 1), clients_week=round_half_up(clients / days * 7, 1),
             clients_day=round_half_up(clients / days, 1),
             leads_month=round_half_up(leads), leads_day=round_half_up(leads / days, 1)))
     return rows
 
 
-def track(rows: list[PlanRow], ds: Dataset, as_of: date, holidays: set[date]) -> list[PlanRow]:
+def track(rows: list[PlanRow], ds: Dataset, as_of: date) -> list[PlanRow]:
     """Faktni qo'shadi: oy boshidan `as_of` gacha (faqat "ishladi" kunlari)."""
     for r in rows:
         m0, m1 = r.month, month_end(r.month)
         end = min(as_of, m1)
-        wd = plan_workdays(m0, m1, holidays)
+        wd = month_days(m0)
         r.elapsed_days = sum(1 for d in wd if d <= end)
         r.remaining_days = sum(1 for d in wd if d > end)
         r.expected_amount = min(r.amount, r.daily * r.elapsed_days)
@@ -165,7 +162,7 @@ def track(rows: list[PlanRow], ds: Dataset, as_of: date, holidays: set[date]) ->
 
 def calendar_weeks(r: PlanRow, wd: list[date], by_day: dict[date, float] | None = None,
                    as_of: date | None = None) -> list[dict]:
-    """Oy haftalari (dushanba–yakshanba): ish kunlari va shu hafta uchun reja."""
+    """Oy haftalari (dushanba–yakshanba): kunlar soni va shu hafta uchun reja."""
     weeks: dict[date, list[date]] = {}
     for d in wd:
         weeks.setdefault(d - timedelta(days=d.weekday()), []).append(d)

@@ -96,13 +96,21 @@ o'rniga Excel fayldan o'qiladi, masalan:
 
 **Reja** varag'i: `Oy · Operator · Oylik reja (so'm) · Konversiya maqsadi % · O'rtacha chek · Izoh`.
 G–Q ustunlari formulalar bilan to'ladi:
-- kunlik reja = oylik ÷ 26, haftalik reja = oylik ÷ 4;
+- kunlik reja = oylik ÷ oydagi kunlar, haftalik reja = kunlik × 7;
 - mijoz soni = summa ÷ 400 000, shundan kunlik va haftalik;
 - kerakli sifatli lead (konversiya maqsadi bo'yicha);
 - fakt summa va mijozlar, bajarilish %, qolgan ish kuni, kuniga qancha kerak.
 
-Chek va kunlar soni Sozlamalardagi `REJA_CHEK`, `REJA_ISH_KUNLARI`, `REJA_HAFTALAR` kalitlarida.
-Bayram kunlari **Bayramlar** varag'ida saqlanadi va faqat rejada hisobga olinadi.
+Kunlik reja oydagi kalendar kunlari bo'yicha hisoblanadi (oktabr — 31 kun), chunki
+har bir operatorning dam olish kuni har xil. Haftalik reja = kunlik × 7.
+Sozlamalardagi kalitlar: `REJA_CHEK` (400 000), `REJA_KUNLAR` (0 = kalendar kunlari),
+`REJA_BAZA_ESKI` va `REJA_BAZA_LEAD` (baza hajmi).
+
+Bir xodimning ismi turlicha yozilsa (Bekzod / Behzod), Operatorlar varag'ining
+"Boshqa yozilishi" ustuniga qo'shing. Shunda reja va fakt bitta xodimga bog'lanadi.
+O'xshash ismlar (Ruxshona va Ruhshona) avtomatik birlashtirilmaydi.
+
+Metasell AI xulosalaridan vazifa tayyorlash topshirig'i: `docs/metasell-vazifalar.md`.
 
 ```bash
 python -m kpi reja-yukla --csv rejalar/2026-10.csv   # oktabr rejasini Reja varag'iga yozish

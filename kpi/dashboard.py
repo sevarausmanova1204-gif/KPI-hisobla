@@ -95,10 +95,8 @@ def write_dashboard(path: str, ds: Dataset, settings: C.Settings, as_of: date,
 PLAN_TEMPLATE = Path(__file__).with_name("templates") / "reja.html"
 
 
-def build_plan_data(rows: list, month: date, as_of: date, holidays: set[date]) -> dict:
-    from .plan import plan_workdays
-    m1 = A.month_end(month)
-    wd = plan_workdays(month, m1, holidays)
+def build_plan_data(rows: list, month: date, as_of: date, settings: C.Settings) -> dict:
+    from .plan import plan_days
     started = as_of >= month
     ops = []
     for r in sorted(rows, key=lambda r: -r.amount):
@@ -121,20 +119,18 @@ def build_plan_data(rows: list, month: date, as_of: date, holidays: set[date]) -
             "monthLabel": f"{MONTHS[month.month - 1]} {month.year}",
             "asOf": as_of.strftime("%d.%m.%Y") if started else None,
             "started": started,
-            "workdays": len(wd),
-            "planDays": 26 if first is None else round(first.amount / first.daily) if first.daily else 26,
-            "holidays": [d.strftime("%d.%m") for d in sorted(holidays) if month <= d <= m1],
-            "sundays": sum(1 for i in range((m1 - month).days + 1)
-                           if (month + timedelta(i)).weekday() == 6),
-            "check": first.avg_check if first else 400_000,
+            "planDays": plan_days(month, settings),
+            "check": first.avg_check if first else settings.get("REJA_CHEK"),
+            "baseOld": settings.get("REJA_BAZA_ESKI"),
+            "baseLead": settings.get("REJA_BAZA_LEAD"),
         },
         "operators": ops,
     }
 
 
-def write_plan_page(path: str, rows: list, month: date, as_of: date, holidays: set[date]) -> str:
+def write_plan_page(path: str, rows: list, month: date, as_of: date, settings: C.Settings) -> str:
     html = PLAN_TEMPLATE.read_text(encoding="utf-8")
-    payload = json.dumps(build_plan_data(rows, month, as_of, holidays), ensure_ascii=False,
+    payload = json.dumps(build_plan_data(rows, month, as_of, settings), ensure_ascii=False,
                          default=str).replace("</", "<\\/")
     Path(path).write_text(html.replace("/*__DATA__*/null", payload), encoding="utf-8")
     return path

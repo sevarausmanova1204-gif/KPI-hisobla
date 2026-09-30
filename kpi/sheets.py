@@ -11,7 +11,7 @@ from .calc import SalaryRow
 from .models import HEADERS, Dataset, parse_dataset, parse_settings
 
 DATA_SHEETS = [C.SH_SETTINGS, C.SH_OPERATORS, C.SH_DAILY, C.SH_SALES,
-               C.SH_ATTENDANCE, C.SH_DIRECTOR, C.SH_PLAN, C.SH_HOLIDAYS]
+               C.SH_ATTENDANCE, C.SH_DIRECTOR, C.SH_PLAN]
 
 ANALYSIS_HEADERS = ["Sana", "Operator", "Ko'rsatkich", "Qiymat", "Holat", "Bosqich",
                     "Keyingi chegara", "Chegaragacha", "Ta'sir (so'm)", "Oy oxirigacha kerak",
@@ -168,11 +168,6 @@ class SheetStore:
         plan_ws.update(range_name=f"{F.PLAN_FIRST_CALC_COL}1",
                        values=[F.PLAN_CALC_HEADERS, F.plan_formulas()],
                        value_input_option="USER_ENTERED")
-        hol = sheets[C.SH_HOLIDAYS]
-        if len(hol.get_values("A1:A3")) <= 1:
-            hol.update(range_name="A2", values=[list(h) for h in C.DEFAULT_HOLIDAYS],
-                       value_input_option="USER_ENTERED")
-            log.append("+ Bayramlar: standart sanalar (hayitlarni qo'shing)")
         sheets[C.SH_ANALYSIS].update(range_name="A1", values=[ANALYSIS_HEADERS])
         sheets[C.SH_ARCHIVE].update(range_name="A1", values=[ARCHIVE_HEADERS])
 
@@ -338,8 +333,6 @@ class SheetStore:
         fmt(pl, 0, 1, {"type": "DATE", "pattern": "mm.yyyy"})
         for i in (2, 4, 6, 7, 12, 16):
             fmt(pl, i, i + 1, money_fmt)
-        fmt(C.SH_HOLIDAYS, 0, 1, date_fmt)
-        validate(C.SH_HOLIDAYS, 0, date_rule, strict=True)
 
         # Hisob varaqlari formatlari
         fmt(C.SH_CALC_DAILY, 0, 1, date_fmt)

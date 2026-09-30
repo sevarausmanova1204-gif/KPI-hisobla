@@ -131,6 +131,10 @@ def _cl(x: float) -> str:
     return (f"{x:.1f}".rstrip("0").rstrip(".")).replace(".", ",")
 
 
+def _days(r) -> int:
+    return round(r.amount / r.daily) if r.daily else 0
+
+
 def plan_distribution(month_label: str, rows: list) -> list[str]:
     """Oy boshida: har operatorga vazifa (kunlik / haftalik / oylik reja)."""
     total = sum(r.amount for r in rows)
@@ -138,7 +142,8 @@ def plan_distribution(month_label: str, rows: list) -> list[str]:
     blocks = [f"<b>🎯 {escape(month_label)} rejasi — vazifalar taqsimoti</b>\n"
               f"Jami: <b>{fmt_money(total)} so'm</b> · {fmt_money(clients)} mijoz · "
               f"{len(rows)} operator\n"
-              f"Kunlik = oylik ÷ 26, haftalik = oylik ÷ 4, mijoz = summa ÷ {fmt_money(rows[0].avg_check if rows else 400000)}"]
+              f"Kunlik = oylik ÷ {_days(rows[0]) if rows else 0} kun, haftalik = kunlik × 7, "
+              f"mijoz = summa ÷ {fmt_money(rows[0].avg_check if rows else 400000)}"]
     for i, r in enumerate(sorted(rows, key=lambda r: -r.amount), 1):
         note = f" ({escape(r.note)})" if r.note else ""
         blocks.append(

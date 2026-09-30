@@ -74,7 +74,6 @@ class Dataset:
     sales: list[Sale] = field(default_factory=list)
     director_bonuses: list[DirectorBonus] = field(default_factory=list)
     plans: list = field(default_factory=list)       # plan.PlanInput
-    holidays: set = field(default_factory=set)      # Bayramlar (faqat reja uchun)
 
     def operator(self, name: str) -> Operator | None:
         for op in self.operators:
@@ -85,7 +84,8 @@ class Dataset:
 
 # Varaq sarlavhalari (setup va o'qish uchun bir xil)
 HEADERS = {
-    C.SH_OPERATORS: ["Ism", "Ishga kirgan sana", "Fixa", "Holat", "Turi", "Telegram ID"],
+    C.SH_OPERATORS: ["Ism", "Ishga kirgan sana", "Fixa", "Holat", "Turi", "Telegram ID",
+                     "Boshqa yozilishi (vergul bilan)"],
     C.SH_DAILY: ["Sana", "Operator", "Holat", "Ulanish (qo'ng'iroq)", "Kunlik gaplashish",
                  "Sifat", "O'rtacha qo'ng'iroq", "Umumiy lead", "Sifatli lead",
                  "Sotuv soni", "Sotuv summasi"],
@@ -95,7 +95,6 @@ HEADERS = {
     C.SH_SETTINGS: ["Kalit", "Qiymat", "Izoh"],
     C.SH_PLAN: ["Oy", "Operator", "Oylik reja (so'm)", "Konversiya maqsadi %",
                 "O'rtacha chek (bo'sh = Sozlamalar)", "Izoh"],
-    C.SH_HOLIDAYS: ["Sana", "Nomi"],
 }
 
 
@@ -123,10 +122,12 @@ def parse_settings(rows: list[list[object]] | None) -> C.Settings:
 
 def parse_dataset(sheets: dict[str, list[list[object]]]) -> Dataset:
     ds = Dataset()
+    aliases: dict[str, list[str]] = {}
     for r in _rows(sheets.get(C.SH_OPERATORS)):
         name = _name(r[0])
         if not name:
             continue
+        aliases[name] = [_name(a) for a in to_text(r[6]).split(",") if _name(a)]
         kind = norm(r[4]) or "operator"
         ds.operators.append(Operator(
             name=name, hire_date=to_date(r[1]), fixa=to_number(r[2]),
@@ -161,7 +162,21 @@ def parse_dataset(sheets: dict[str, list[list[object]]]) -> Dataset:
             continue
         ds.director_bonuses.append(DirectorBonus(
             month=d.replace(day=1), operator=name, amount=amount, note=to_text(r[3])))
-    from .plan import parse_holidays, parse_plan
+    from .plan import parse_plan
     ds.plans = parse_plan(sheets.get(C.SH_PLAN))
-    ds.holidays = parse_holidays(sheets.get(C.SH_HOLIDAYS))
+    apply_aliases(ds, {a: n for n, names in aliases.items() for a in names})
     return ds
+
+
+def apply_aliases(ds: Dataset, alias_to_name: dict[str, str]) -> None:
+    """Bir odamning turli yozilishini (Bekzod → Behzod) Operatorlar'dagi ismga keltiradi.
+
+    Faqat aniq ko'rsatilgan yozilishlar almashtiriladi; o'xshash ismlar
+    (masalan Ruxshona va Ruhshona — ikki xil odam) avtomatik birlashtirilmaydi.
+    """
+    if not alias_to_name:
+        return
+    by_norm = {norm(a): n for a, n in alias_to_name.items()}
+    for items in (ds.entries, ds.attendance, ds.sales, ds.director_bonuses, ds.plans):
+        for item in items:
+            item.operator = by_norm.get(norm(item.operator), item.operator)
