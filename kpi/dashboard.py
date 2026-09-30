@@ -15,7 +15,7 @@ from .calc import compute_salary, compute_stats, month_start, workdays
 from .models import Dataset
 
 TEMPLATE = Path(__file__).with_name("templates") / "dashboard.html"
-_MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust",
+MONTHS = _MONTHS = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust",
            "Sentabr", "Oktabr", "Noyabr", "Dekabr"]
 
 
@@ -89,4 +89,52 @@ def render(data: dict) -> str:
 def write_dashboard(path: str, ds: Dataset, settings: C.Settings, as_of: date,
                     sample: bool = False) -> str:
     Path(path).write_text(render(build_data(ds, settings, as_of, sample)), encoding="utf-8")
+    return path
+
+
+PLAN_TEMPLATE = Path(__file__).with_name("templates") / "reja.html"
+
+
+def build_plan_data(rows: list, month: date, as_of: date, holidays: set[date]) -> dict:
+    from .plan import plan_workdays
+    m1 = A.month_end(month)
+    wd = plan_workdays(month, m1, holidays)
+    started = as_of >= month
+    ops = []
+    for r in sorted(rows, key=lambda r: -r.amount):
+        ops.append({
+            "name": r.operator, "note": r.note, "amount": r.amount, "conversion": r.conversion,
+            "check": r.avg_check, "daily": r.daily, "weekly": r.weekly,
+            "clientsMonth": r.clients_month, "clientsWeek": r.clients_week, "clientsDay": r.clients_day,
+            "leadsMonth": r.leads_month, "leadsDay": r.leads_day,
+            "fact": r.fact_amount if started else None, "factClients": r.fact_clients if started else None,
+            "expected": r.expected_amount, "pace": r.pace, "completion": r.completion,
+            "needDay": r.need_per_day, "needClientsDay": r.need_clients_per_day,
+            "factConversion": r.fact_conversion,
+            "weeks": [{**w, "from": w["from"].strftime("%d.%m"), "to": w["to"].strftime("%d.%m")}
+                      for w in r.weeks],
+        })
+    first = rows[0] if rows else None
+    return {
+        "meta": {
+            "month": month.strftime("%Y-%m"),
+            "monthLabel": f"{MONTHS[month.month - 1]} {month.year}",
+            "asOf": as_of.strftime("%d.%m.%Y") if started else None,
+            "started": started,
+            "workdays": len(wd),
+            "planDays": 26 if first is None else round(first.amount / first.daily) if first.daily else 26,
+            "holidays": [d.strftime("%d.%m") for d in sorted(holidays) if month <= d <= m1],
+            "sundays": sum(1 for i in range((m1 - month).days + 1)
+                           if (month + timedelta(i)).weekday() == 6),
+            "check": first.avg_check if first else 400_000,
+        },
+        "operators": ops,
+    }
+
+
+def write_plan_page(path: str, rows: list, month: date, as_of: date, holidays: set[date]) -> str:
+    html = PLAN_TEMPLATE.read_text(encoding="utf-8")
+    payload = json.dumps(build_plan_data(rows, month, as_of, holidays), ensure_ascii=False,
+                         default=str).replace("</", "<\\/")
+    Path(path).write_text(html.replace("/*__DATA__*/null", payload), encoding="utf-8")
     return path

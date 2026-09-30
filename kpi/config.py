@@ -18,6 +18,8 @@ SH_CALC_DAILY = "Hisob_kunlik"
 SH_CALC_MONTHLY = "Hisob_oylik"
 SH_ANALYSIS = "Tahlil"
 SH_ARCHIVE = "Arxiv"
+SH_PLAN = "Reja"
+SH_HOLIDAYS = "Bayramlar"
 
 # Holat qiymatlari
 WORKED = "ishladi"
@@ -111,6 +113,17 @@ DEFAULT_SETTINGS: list[tuple[str, object, str]] = [
     ("SARIQ_FOIZ", 90, "Sariq holat: chegaraning shu foizidan yuqori"),
     ("MAX_CHORA", 2, "Bir operatorga kuniga beriladigan choralar soni"),
     ("MALUMOT_YOQ_KUN", 2, "Necha ish kuni ma'lumot bo'lmasa chora beriladi"),
+    ("REJA_CHEK", 400_000, "Reja: mijozlar sonini hisoblash uchun o'rtacha chek"),
+    ("REJA_ISH_KUNLARI", 26, "Reja: kunlik reja = oylik / shu son"),
+    ("REJA_HAFTALAR", 4, "Reja: haftalik reja = oylik / shu son"),
+]
+
+# Bayramlar varag'i bo'sh bo'lsa, setup shu sanalarni qo'yadi (tekshirib, hayitlarni qo'shing)
+DEFAULT_HOLIDAYS = [
+    ("2026-01-01", "Yangi yil"), ("2026-03-08", "Xotin-qizlar kuni"),
+    ("2026-03-21", "Navro'z"), ("2026-05-09", "Xotira va qadrlash kuni"),
+    ("2026-09-01", "Mustaqillik kuni"), ("2026-10-01", "O'qituvchi va murabbiylar kuni"),
+    ("2026-12-08", "Konstitutsiya kuni"),
 ]
 
 

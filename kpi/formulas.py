@@ -205,3 +205,35 @@ def valid_between(cell: str, lo: float, hi: float) -> str:
 
 def valid_nonneg(cell: str) -> str:
     return f'OR({cell}="",AND(ISNUMBER({cell}),{cell}>=0))'
+
+
+# ---- Reja ----------------------------------------------------------------
+
+PLAN_CALC_HEADERS = [
+    "Kunlik reja (so'm)", "Haftalik reja (so'm)", "Mijoz oylik", "Mijoz haftalik",
+    "Mijoz kunlik", "Kerakli sifatli lead (oy)", "Fakt summa", "Fakt mijoz",
+    "Bajarilish %", "Qolgan ish kuni", "Kuniga kerak (so'm)",
+]
+PLAN_FIRST_CALC_COL = "G"
+
+
+def plan_formulas() -> list[str]:
+    """Reja!G2:Q2 — har biri MAP bilan butun ustunni to'ldiradi."""
+    kk = f"{K}!$"
+    fact = (lambda col: f'=MAP(A2:A,B2:B,LAMBDA(a,b,IF(b="","",SUMIFS({kk}{col}$2:${col},'
+            f'{kk}B$2:$B,b,{kk}A$2:$A,">="&a,{kk}A$2:$A,"<="&EOMONTH(a,0),{kk}C$2:$C,"{C.WORKED}"))))')
+    days, weeks, check = named("REJA_ISH_KUNLARI"), named("REJA_HAFTALAR"), named("REJA_CHEK")
+    return [
+        f'=MAP(C2:C,LAMBDA(c,IF(c="","",ROUND(c/{days},0))))',
+        f'=MAP(C2:C,LAMBDA(c,IF(c="","",ROUND(c/{weeks},0))))',
+        f'=MAP(C2:C,E2:E,LAMBDA(c,e,IF(c="","",ROUND(c/IF(e="",{check},e),1))))',
+        f'=MAP(I2:I,LAMBDA(i,IF(i="","",ROUND(i/{weeks},1))))',
+        f'=MAP(I2:I,LAMBDA(i,IF(i="","",ROUND(i/{days},1))))',
+        '=MAP(I2:I,D2:D,LAMBDA(i,d,IF(OR(i="",d="",d=0),"",ROUND(i/(IF(d<=1,d*100,d)/100),0))))',
+        fact("K"),
+        fact("J"),
+        '=MAP(C2:C,M2:M,LAMBDA(c,m,IF(c="","",ROUND(m/c*100,1))))',
+        (f'=MAP(A2:A,C2:C,LAMBDA(a,c,IF(c="","",IF(TODAY()>EOMONTH(a,0),0,'
+         f'NETWORKDAYS.INTL(MAX(TODAY(),a),EOMONTH(a,0),"0000001",{C.SH_HOLIDAYS}!$A$2:$A)))))'),
+        '=MAP(C2:C,M2:M,P2:P,LAMBDA(c,m,p,IF(c="","",ROUND(MAX(0,c-m)/MAX(1,p),0))))',
+    ]

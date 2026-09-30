@@ -6,6 +6,8 @@
   haftalik         Haftalik hisobot (dushanba)
   oylik            Oylik maosh → Arxiv + Excel + Telegram (1-sana)
   tasdiqlash       Arxivdagi oy maoshini "tasdiqlangan" deb belgilash
+  reja             Oylik reja: vazifalar taqsimoti (Telegram + HTML)
+  reja-yukla       CSV rejani Reja varag'iga yozish
   dashboard        HTML KPI paneli (dashboard.html)
   tekshir          Python hisobini Sheets formulalari bilan solishtirish
   shablon          Offlayn sinov uchun bo'sh .xlsx shablon
@@ -117,7 +119,69 @@ def cmd_daily(args) -> None:
     missing = A.expected_entries(ds, day)
     if store and not args.yuborma:
         store.write_analysis(day, analysis_rows(day, analyses))
-    _send(args, R.daily_report(day, analyses, missing, A.sales_mismatches(ds, day)))
+    messages = R.daily_report(day, analyses, missing, A.sales_mismatches(ds, day))
+    plan_rows = _plan_rows(ds, settings, day)
+    if plan_rows:
+        messages += R.split_messages([R.plan_progress_block(plan_rows)])
+    _send(args, messages)
+
+
+def _plan_rows(ds, settings, day: date):
+    from .plan import build_plan, track
+    rows = build_plan(ds.plans, settings, month_start(day))
+    return track(rows, ds, day, ds.holidays) if rows else []
+
+
+def _plan_source(args):
+    """(dataset, settings) — reja --csv fayldan yoki Sheets/xlsx'dan."""
+    if getattr(args, "csv", None):
+        import csv
+
+        from .config import Settings
+        from .models import Dataset
+        from .plan import parse_holidays, parse_plan
+        with open(args.csv, encoding="utf-8-sig") as fh:
+            rows = list(csv.reader(fh))
+        ds = Dataset(plans=parse_plan(rows))
+        from .config import DEFAULT_HOLIDAYS
+        ds.holidays = parse_holidays([["Sana"]] + [[d] for d, _ in DEFAULT_HOLIDAYS])
+        return None, ds, Settings()
+    return _load(args)
+
+
+def cmd_plan(args) -> None:
+    from .dashboard import MONTHS
+    from .plan import build_plan, track
+    store, ds, settings = _plan_source(args)
+    month = datetime.strptime(args.oy, "%Y-%m").date() if args.oy else month_start(_today())
+    rows = build_plan(ds.plans, settings, month)
+    if not rows:
+        raise SystemExit(f"{month.strftime('%Y-%m')} uchun reja topilmadi (Reja varag'i yoki --csv)")
+    as_of = min(_today() - timedelta(days=1), month_end(month))
+    track(rows, ds, as_of, ds.holidays)
+    label = f"{MONTHS[month.month - 1]} {month.year}"
+    if args.fayl:
+        from .dashboard import write_plan_page
+        print(f"Reja sahifasi: {write_plan_page(args.fayl, rows, month, as_of, ds.holidays)}")
+    _send(args, R.plan_distribution(label, rows))
+
+
+def cmd_plan_load(args) -> None:
+    import csv
+
+    from .sheets import SheetStore
+    with open(args.csv, encoding="utf-8-sig") as fh:
+        rows = list(csv.reader(fh))
+    from .plan import parse_plan
+    plans = parse_plan(rows)
+    months = {p.month for p in plans}
+    if len(months) != 1:
+        raise SystemExit("CSV faylda bitta oy rejasi bo'lishi kerak")
+    month = months.pop()
+    body = [[p.month.strftime("%d.%m.%Y"), p.operator, p.amount, p.conversion,
+             p.avg_check or "", p.note] for p in plans]
+    SheetStore().replace_plan(month, body)
+    print(f"{month.strftime('%Y-%m')}: {len(body)} ta operator rejasi Reja varag'iga yozildi")
 
 
 def cmd_weekly(args) -> None:
@@ -233,6 +297,14 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--oy", help="YYYY-MM")
     sp.set_defaults(fn=cmd_approve)
     sub.add_parser("tekshir").set_defaults(fn=cmd_check)
+    sp = common(sub.add_parser("reja"))
+    sp.add_argument("--oy", help="YYYY-MM (standart: joriy oy)")
+    sp.add_argument("--csv", help="Reja varag'i o'rniga CSV fayldan (masalan rejalar/2026-10.csv)")
+    sp.add_argument("--fayl", help="Reja sahifasini HTML qilib saqlash")
+    sp.set_defaults(fn=cmd_plan)
+    sp = sub.add_parser("reja-yukla")
+    sp.add_argument("--csv", required=True, help="rejalar/2026-10.csv")
+    sp.set_defaults(fn=cmd_plan_load)
     sp = sub.add_parser("dashboard")
     sp.add_argument("--xlsx", help="Sheets o'rniga .xlsx fayldan o'qish")
     sp.add_argument("--sana", help="YYYY-MM-DD (standart: kecha)")

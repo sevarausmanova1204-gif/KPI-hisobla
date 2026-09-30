@@ -118,3 +118,51 @@ def monthly_report(month: date, rows: list[SalaryRow], ish_kunlari: int = 26) ->
     blocks.append(f"<b>Umumiy fond: {fmt_money(total)} so'm</b>\n"
                   "Maosh jadvali direktor tasdig'idan keyin yakuniy hisoblanadi.")
     return split_messages(blocks)
+
+
+# ---- Reja -----------------------------------------------------------------
+
+def _mln(x: float) -> str:
+    v = x / 1_000_000
+    return (f"{v:.1f}".rstrip("0").rstrip(".") if v < 100 else f"{v:.0f}").replace(".", ",") + " mln"
+
+
+def _cl(x: float) -> str:
+    return (f"{x:.1f}".rstrip("0").rstrip(".")).replace(".", ",")
+
+
+def plan_distribution(month_label: str, rows: list) -> list[str]:
+    """Oy boshida: har operatorga vazifa (kunlik / haftalik / oylik reja)."""
+    total = sum(r.amount for r in rows)
+    clients = sum(r.clients_month for r in rows)
+    blocks = [f"<b>🎯 {escape(month_label)} rejasi — vazifalar taqsimoti</b>\n"
+              f"Jami: <b>{fmt_money(total)} so'm</b> · {fmt_money(clients)} mijoz · "
+              f"{len(rows)} operator\n"
+              f"Kunlik = oylik ÷ 26, haftalik = oylik ÷ 4, mijoz = summa ÷ {fmt_money(rows[0].avg_check if rows else 400000)}"]
+    for i, r in enumerate(sorted(rows, key=lambda r: -r.amount), 1):
+        note = f" ({escape(r.note)})" if r.note else ""
+        blocks.append(
+            f"<b>{i}. {escape(r.operator)}</b>{note}\n"
+            f"Oy: {fmt_money(r.amount)} so'm · {_cl(r.clients_month)} mijoz\n"
+            f"Hafta: {fmt_money(r.weekly)} so'm · {_cl(r.clients_week)} mijoz\n"
+            f"Kun: {fmt_money(r.daily)} so'm · {_cl(r.clients_day)} mijoz\n"
+            f"Konversiya maqsadi: {_cl(r.conversion)}% → kuniga ≈{_cl(r.leads_day)} sifatli lead kerak")
+    return split_messages(blocks)
+
+
+def plan_progress_block(rows: list) -> str:
+    """Kunlik hisobotga qo'shiladigan "reja bajarilishi" bloki."""
+    if not rows:
+        return ""
+    total = sum(r.amount for r in rows)
+    fact = sum(r.fact_amount for r in rows)
+    expected = sum(r.expected_amount for r in rows)
+    lines = [f"<b>🎯 Reja bajarilishi</b>: {_mln(fact)} / {_mln(total)} "
+             f"({fact / total * 100:.0f}%) · shu kungacha kerak {_mln(expected)}"]
+    for r in sorted(rows, key=lambda r: (r.pace or 0)):
+        pace = r.pace
+        mark = "🟢" if pace is not None and pace >= 100 else ("🟡" if pace is not None and pace >= 90 else "🔴")
+        lines.append(f"{mark} {escape(r.operator)}: {_mln(r.fact_amount)} / {_mln(r.amount)} "
+                     f"({r.completion:.0f}%), sur'at {pace or 0:.0f}% · "
+                     f"kuniga {_mln(r.need_per_day)} / {_cl(round(r.need_clients_per_day, 1))} mijoz kerak")
+    return "\n".join(lines)

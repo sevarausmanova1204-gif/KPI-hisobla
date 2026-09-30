@@ -73,6 +73,8 @@ class Dataset:
     attendance: list[Attendance] = field(default_factory=list)
     sales: list[Sale] = field(default_factory=list)
     director_bonuses: list[DirectorBonus] = field(default_factory=list)
+    plans: list = field(default_factory=list)       # plan.PlanInput
+    holidays: set = field(default_factory=set)      # Bayramlar (faqat reja uchun)
 
     def operator(self, name: str) -> Operator | None:
         for op in self.operators:
@@ -91,6 +93,9 @@ HEADERS = {
     C.SH_ATTENDANCE: ["Sana", "Operator", "Holat", "Kechikish (daq)", "Ish soati"],
     C.SH_DIRECTOR: ["Oy", "Operator", "Summa", "Izoh"],
     C.SH_SETTINGS: ["Kalit", "Qiymat", "Izoh"],
+    C.SH_PLAN: ["Oy", "Operator", "Oylik reja (so'm)", "Konversiya maqsadi %",
+                "O'rtacha chek (bo'sh = Sozlamalar)", "Izoh"],
+    C.SH_HOLIDAYS: ["Sana", "Nomi"],
 }
 
 
@@ -156,4 +161,7 @@ def parse_dataset(sheets: dict[str, list[list[object]]]) -> Dataset:
             continue
         ds.director_bonuses.append(DirectorBonus(
             month=d.replace(day=1), operator=name, amount=amount, note=to_text(r[3])))
+    from .plan import parse_holidays, parse_plan
+    ds.plans = parse_plan(sheets.get(C.SH_PLAN))
+    ds.holidays = parse_holidays(sheets.get(C.SH_HOLIDAYS))
     return ds

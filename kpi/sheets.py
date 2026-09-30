@@ -11,7 +11,7 @@ from .calc import SalaryRow
 from .models import HEADERS, Dataset, parse_dataset, parse_settings
 
 DATA_SHEETS = [C.SH_SETTINGS, C.SH_OPERATORS, C.SH_DAILY, C.SH_SALES,
-               C.SH_ATTENDANCE, C.SH_DIRECTOR]
+               C.SH_ATTENDANCE, C.SH_DIRECTOR, C.SH_PLAN, C.SH_HOLIDAYS]
 
 ANALYSIS_HEADERS = ["Sana", "Operator", "Ko'rsatkich", "Qiymat", "Holat", "Bosqich",
                     "Keyingi chegara", "Chegaragacha", "Ta'sir (so'm)", "Oy oxirigacha kerak",
@@ -132,6 +132,21 @@ class SheetStore:
                 prot["editors"] = {"users": [email]}
         self.sh.batch_update({"requests": [{"addProtectedRange": {"protectedRange": prot}}]})
 
+    def replace_plan(self, month: date, rows: list[list[object]]) -> None:
+        """Reja varag'ida shu oy qatorlarini yangilari bilan almashtiradi (A:F)."""
+        from .parsing import to_date
+        ws, _ = self._ws(C.SH_PLAN)
+        existing = ws.get_values("A1:F", value_render_option="FORMATTED_VALUE")
+        keep = []
+        for r in existing[1:]:
+            d = to_date(r[0]) if r else None
+            if r and any(r) and not (d and d.replace(day=1) == month):
+                keep.append((list(r) + [""] * 6)[:6])
+        body = keep + rows
+        ws.batch_clear(["A2:F"])
+        if body:
+            ws.update(range_name="A2", values=body, value_input_option="USER_ENTERED")
+
     # ---- tuzilma (1-bosqich) ---------------------------------------------
     def setup(self) -> list[str]:
         """Varaqlar, sarlavhalar, Sozlamalar, validatsiya va formulalarni yaratadi.
@@ -148,6 +163,16 @@ class SheetStore:
                 log.append(f"+ varaq: {title}")
         for title, headers in HEADERS.items():
             sheets[title].update(range_name="A1", values=[headers])
+        # Reja: hisoblangan ustunlar sarlavhasi va formulalari (G2:Q2)
+        plan_ws = sheets[C.SH_PLAN]
+        plan_ws.update(range_name=f"{F.PLAN_FIRST_CALC_COL}1",
+                       values=[F.PLAN_CALC_HEADERS, F.plan_formulas()],
+                       value_input_option="USER_ENTERED")
+        hol = sheets[C.SH_HOLIDAYS]
+        if len(hol.get_values("A1:A3")) <= 1:
+            hol.update(range_name="A2", values=[list(h) for h in C.DEFAULT_HOLIDAYS],
+                       value_input_option="USER_ENTERED")
+            log.append("+ Bayramlar: standart sanalar (hayitlarni qo'shing)")
         sheets[C.SH_ANALYSIS].update(range_name="A1", values=[ANALYSIS_HEADERS])
         sheets[C.SH_ARCHIVE].update(range_name="A1", values=[ARCHIVE_HEADERS])
 
@@ -303,6 +328,18 @@ class SheetStore:
         validate(b, 1, op_rule, strict=True)
         fmt(b, 0, 1, date_fmt)
         fmt(b, 2, 3, money_fmt)
+
+        # Reja
+        pl = C.SH_PLAN
+        validate(pl, 0, date_rule, "Oyning 1-sanasi, masalan 01.10.2026", strict=True)
+        validate(pl, 1, op_rule, "Operatorlar ro'yxatidan", strict=True)
+        validate(pl, 2, custom(F.valid_nonneg("C2")), "so'm")
+        validate(pl, 3, custom(F.valid_between("D2", 0, 100)), "masalan 35")
+        fmt(pl, 0, 1, {"type": "DATE", "pattern": "mm.yyyy"})
+        for i in (2, 4, 6, 7, 12, 16):
+            fmt(pl, i, i + 1, money_fmt)
+        fmt(C.SH_HOLIDAYS, 0, 1, date_fmt)
+        validate(C.SH_HOLIDAYS, 0, date_rule, strict=True)
 
         # Hisob varaqlari formatlari
         fmt(C.SH_CALC_DAILY, 0, 1, date_fmt)

@@ -92,6 +92,28 @@ yozilmaydi, faqat ekranga chiqadi. `--xlsx fayl.xlsx` bilan ma'lumot Sheets
 o'rniga Excel fayldan o'qiladi, masalan:
 `python -m kpi kunlik --xlsx sentabr.xlsx --yuborma`.
 
+## Oylik reja va vazifalar taqsimoti
+
+**Reja** varag'i: `Oy · Operator · Oylik reja (so'm) · Konversiya maqsadi % · O'rtacha chek · Izoh`.
+G–Q ustunlari formulalar bilan to'ladi:
+- kunlik reja = oylik ÷ 26, haftalik reja = oylik ÷ 4;
+- mijoz soni = summa ÷ 400 000, shundan kunlik va haftalik;
+- kerakli sifatli lead (konversiya maqsadi bo'yicha);
+- fakt summa va mijozlar, bajarilish %, qolgan ish kuni, kuniga qancha kerak.
+
+Chek va kunlar soni Sozlamalardagi `REJA_CHEK`, `REJA_ISH_KUNLARI`, `REJA_HAFTALAR` kalitlarida.
+Bayram kunlari **Bayramlar** varag'ida saqlanadi va faqat rejada hisobga olinadi.
+
+```bash
+python -m kpi reja-yukla --csv rejalar/2026-10.csv   # oktabr rejasini Reja varag'iga yozish
+python -m kpi reja --oy 2026-10 --fayl reja.html     # Telegram'ga taqsimot + HTML sahifa
+python -m kpi reja --csv rejalar/2026-10.csv --yuborma   # Sheets'siz ko'rish
+```
+
+Kunlik hisobotga "Reja bajarilishi" bloki qo'shiladi. Unda har bir operatorning fakti,
+sur'ati (shu kungacha bo'lishi kerak bo'lgan summaga nisbatan) va qolgan kunlarda
+kuniga qancha summa va mijoz kerakligi ko'rsatiladi.
+
 ## Dashboard
 
 `python -m kpi dashboard` yagona mustaqil `dashboard.html` fayl yasaydi. Unda:
